@@ -482,10 +482,6 @@ class SteamBrowser(QWidget):
             # }
             # """
 
-            self.web_view.page().runJavaScript(
-                inject_installed_mods_script, 0, lambda result: None
-            )
-
             is_mod_page = (
                 self.url_prefix_sharedfiles in self.current_url
                 or self.url_prefix_workshop in self.current_url
@@ -503,6 +499,9 @@ class SteamBrowser(QWidget):
                 inject_installed_mods_script = f"""
                 window.installedMods = {installed_mods};
                 """
+                self.web_view.page().runJavaScript(
+                    inject_installed_mods_script, 0, lambda result: None
+                )
 
             if is_mod_page:
                 # get mod id from steam workshop url
