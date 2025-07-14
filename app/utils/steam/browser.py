@@ -482,10 +482,29 @@ class SteamBrowser(QWidget):
             # }
             # """
 
-            if (
+            self.web_view.page().runJavaScript(
+                inject_installed_mods_script, 0, lambda result: None
+            )
+
+            is_mod_page = (
                 self.url_prefix_sharedfiles in self.current_url
                 or self.url_prefix_workshop in self.current_url
-            ):
+            )
+            is_gallery_page = (
+                "browse" in self.current_url or "searchtext" in self.current_url
+            )
+
+            if is_mod_page or is_gallery_page:
+                # Get list of installed mod IDs and inject into page
+                installed_mods = []
+                for metadata in self.metadata_manager.internal_local_metadata.values():
+                    if metadata.get("publishedfileid"):
+                        installed_mods.append(metadata["publishedfileid"])
+                inject_installed_mods_script = f"""
+                window.installedMods = {installed_mods};
+                """
+
+            if is_mod_page:
                 # get mod id from steam workshop url
                 if self.url_prefix_sharedfiles in self.current_url:
                     publishedfileid = self.current_url.split(
@@ -591,17 +610,6 @@ class SteamBrowser(QWidget):
                     }
                 }
                 """
-                # Get list of installed mod IDs and inject into page
-                installed_mods = []
-                for metadata in self.metadata_manager.internal_local_metadata.values():
-                    if metadata.get("publishedfileid"):
-                        installed_mods.append(metadata["publishedfileid"])
-                inject_installed_mods_script = f"""
-                window.installedMods = {installed_mods};
-                """
-                self.web_view.page().runJavaScript(
-                    inject_installed_mods_script, 0, lambda result: None
-                )
                 self.web_view.page().runJavaScript(
                     add_collection_buttons_script, 0, lambda result: None
                 )
@@ -627,48 +635,47 @@ class SteamBrowser(QWidget):
                     self.web_view.page().runJavaScript(
                         add_installed_indicator_script, 0, lambda result: None
                     )
-                    
-                if "browse" in self.current_url or "searchtext" in self.current_url:
-                    add_gallery_markers_script = """
-                    var modTiles = document.querySelectorAll('.workshopItem');
-                    modTiles.forEach(function(tile) {
-                        var link = tile.querySelector('a[href*="id="]');
-                        if (!link) return;
-
-                        var match = link.href.match(/id=(\\d+)/);
-                        if (!match) return;
-
-                        var modId = match[1];
-
-                        if (window.installedMods && window.installedMods.includes(modId)) {
-                            // Only add if not already present
-                            if (!tile.querySelector('.rimsort-installed-badge')) {
-                                var installedBadge = document.createElement('div');
-                                installedBadge.className = 'rimsort-installed-badge';
-                                installedBadge.innerHTML = '✓ Installed';
-                                installedBadge.style.position = 'absolute';
-                                installedBadge.style.top = '5px';
-                                installedBadge.style.right = '5px';
-                                installedBadge.style.backgroundColor = '#4CAF50';
-                                installedBadge.style.color = 'white';
-                                installedBadge.style.padding = '2px 6px';
-                                installedBadge.style.borderRadius = '4px';
-                                installedBadge.style.fontSize = '12px';
-                                installedBadge.style.fontWeight = 'bold';
-                                tile.style.position = 'relative';
-                                tile.appendChild(installedBadge);
-                            }
-                        }
-                    });
-                    """
-
-                    self.web_view.page().runJavaScript(
-                        add_gallery_markers_script, 0, lambda result: None
-                    )
-
                 # Show the add_to_list_button
                 self.nav_bar.addAction(self.add_to_list_button)
-            else:
+
+            if is_gallery_page:
+                add_gallery_markers_script = """
+                var modTiles = document.querySelectorAll('.workshopItem');
+                modTiles.forEach(function(tile) {
+                    var link = tile.querySelector('a[href*="id="]');
+                    if (!link) return;
+
+                    var match = link.href.match(/id=(\\d+)/);
+                    if (!match) return;
+
+                    var modId = match[1];
+
+                    if (window.installedMods && window.installedMods.includes(modId)) {
+                        // Only add if not already present
+                        if (!tile.querySelector('.rimsort-installed-badge')) {
+                            var installedBadge = document.createElement('div');
+                            installedBadge.className = 'rimsort-installed-badge';
+                            installedBadge.innerHTML = '✓ Installed';
+                            installedBadge.style.position = 'absolute';
+                            installedBadge.style.top = '5px';
+                            installedBadge.style.right = '5px';
+                            installedBadge.style.backgroundColor = '#4CAF50';
+                            installedBadge.style.color = 'white';
+                            installedBadge.style.padding = '2px 6px';
+                            installedBadge.style.borderRadius = '4px';
+                            installedBadge.style.fontSize = '12px';
+                            installedBadge.style.fontWeight = 'bold';
+                            tile.style.position = 'relative';
+                            tile.appendChild(installedBadge);
+                        }
+                    }
+                });
+                """
+                self.web_view.page().runJavaScript(
+                    add_gallery_markers_script, 0, lambda result: None
+                )
+
+            if not (is_mod_page or is_gallery_page):
                 self.nav_bar.removeAction(self.add_to_list_button)
 
     def __set_current_html(self, html: str) -> None:
