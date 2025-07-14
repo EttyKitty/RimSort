@@ -627,6 +627,45 @@ class SteamBrowser(QWidget):
                     self.web_view.page().runJavaScript(
                         add_installed_indicator_script, 0, lambda result: None
                     )
+                    
+                if "browse" in self.current_url or "searchtext" in self.current_url:
+                    add_gallery_markers_script = """
+                    var modTiles = document.querySelectorAll('.workshopItem');
+                    modTiles.forEach(function(tile) {
+                        var link = tile.querySelector('a[href*="id="]');
+                        if (!link) return;
+
+                        var match = link.href.match(/id=(\\d+)/);
+                        if (!match) return;
+
+                        var modId = match[1];
+
+                        if (window.installedMods && window.installedMods.includes(modId)) {
+                            // Only add if not already present
+                            if (!tile.querySelector('.rimsort-installed-badge')) {
+                                var installedBadge = document.createElement('div');
+                                installedBadge.className = 'rimsort-installed-badge';
+                                installedBadge.innerHTML = '✓ Installed';
+                                installedBadge.style.position = 'absolute';
+                                installedBadge.style.top = '5px';
+                                installedBadge.style.right = '5px';
+                                installedBadge.style.backgroundColor = '#4CAF50';
+                                installedBadge.style.color = 'white';
+                                installedBadge.style.padding = '2px 6px';
+                                installedBadge.style.borderRadius = '4px';
+                                installedBadge.style.fontSize = '12px';
+                                installedBadge.style.fontWeight = 'bold';
+                                tile.style.position = 'relative';
+                                tile.appendChild(installedBadge);
+                            }
+                        }
+                    });
+                    """
+
+                    self.web_view.page().runJavaScript(
+                        add_gallery_markers_script, 0, lambda result: None
+                    )
+
                 # Show the add_to_list_button
                 self.nav_bar.addAction(self.add_to_list_button)
             else:
